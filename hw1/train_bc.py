@@ -205,8 +205,8 @@ def train(sess, nn,  obs, acts, writer, num_epochs=5000, batch_size=256):
     batch_gen = BatchGenerator(train_ds, train_lb, batch_size)
 
     sess.run(tf.global_variables_initializer())
-    mu.assign(train_mean).op.run()
-    std.assign(train_std).op.run()
+    #mu.assign(train_mean).op.run()
+    #std.assign(train_std).op.run()
 
     for epoch in range(num_epochs):
         avg_loss = 0.
