@@ -179,12 +179,12 @@ def constuct_model(graph, dim_list):
 
         merged_summary = tf.summary.merge_all()
 
-    return graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss, mu, std
+    return graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss#, mu, std
 
 
 # train function
 def train(sess, nn,  obs, acts, writer, num_epochs=5000, batch_size=256):
-    (graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss, mu, std) = nn
+    (graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss) = nn
     # splitting into training and validation set
     indices = np.arange(len(obs))
     bnd = obs.shape[0] - int(obs.shape[0]*valid_frac)
@@ -253,7 +253,7 @@ def load_nn(sess, fname):
     saver.restore(sess, fname)
 
 def run_bc(sess, nn, args, log_file=None):
-    (graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss, mu, std) = nn
+    (graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss) = nn
     import gym
     env = gym.make(args.envname)
     max_steps = args.max_timesteps or env.spec.timestep_limit
