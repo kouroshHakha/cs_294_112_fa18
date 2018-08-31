@@ -29,6 +29,17 @@ import pprint
 import random
 import math
 
+gpu_device = 0
+gpu_frac = 1
+
+# make only one of the GPUs visible
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_device)
+
+# only use part of the GPU memory
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_frac)
+config = tf.ConfigProto(gpu_options=gpu_options)
+
 # utility functions and classes
 class BatchGenerator(object):
     def __init__(self, data_set, labels, batch_size):
@@ -342,7 +353,7 @@ def main():
 
     g = tf.Graph()
     nn = constuct_model(g, dim_list)
-    with tf.Session(graph=g, config=tf.ConfigProto(log_device_placement=False)) as sess:
+    with tf.Session(graph=g, config=tf.ConfigProto(log_device_placement=True)) as sess:
         writer = tf.summary.FileWriter('bc_nn', sess.graph)
         writer.add_graph(graph=tf.get_default_graph())
 
