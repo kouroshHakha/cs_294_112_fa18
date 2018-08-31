@@ -29,17 +29,6 @@ import pprint
 import random
 import math
 
-gpu_device = 0
-gpu_frac = 1
-
-# make only one of the GPUs visible
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_device)
-
-# only use part of the GPU memory
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_frac)
-config = tf.ConfigProto(gpu_options=gpu_options)
-
 # utility functions and classes
 class BatchGenerator(object):
     def __init__(self, data_set, labels, batch_size):
@@ -103,9 +92,9 @@ def query_expert_policy(expert_policy_file, obs_list):
 
 valid_frac = 0.1
 display_step = 1
-batch_size = 256
+batch_size = 32
 # num_epochs is going to get populated later for changing that hyper parameter
-num_epochs = 200
+num_epochs = 80
 
 
 # graph definition
@@ -143,7 +132,7 @@ def constuct_model(graph, dim_list):
                 for i in range(1, len(dim_list)-1):
                     layer = tf.contrib.layers.fully_connected(layer, dim_list[i],
                                                               reuse=reuse, scope='fc'+str(i),
-                                                              activation_fn=tf.nn.tanh,
+                                                              activation_fn=tf.nn.relu,
                                                               weights_initializer=weight_init(activation_size(layer)))
 
                 logits = tf.contrib.layers.fully_connected(layer, num_outputs,
@@ -158,7 +147,7 @@ def constuct_model(graph, dim_list):
             loss = tf.losses.mean_squared_error(labels=tnsr_ref, predictions=tnsr_out)
 
         with tf.variable_scope('optimizer'):
-            optimizer = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss, global_step=global_step)
+            optimizer = tf.train.AdamOptimizer().minimize(loss, global_step=global_step)
 
         tf.summary.scalar('loss', loss)
 
@@ -349,11 +338,11 @@ def main():
     num_features=env.observation_space.shape[0]
     num_outputs=env.action_space.shape[0]
 
-    dim_list = [num_features, 128, 64, num_outputs]
+    dim_list = [num_features, 20, 20, 20, num_outputs]
 
     g = tf.Graph()
     nn = constuct_model(g, dim_list)
-    with tf.Session(graph=g, config=tf.ConfigProto(log_device_placement=True)) as sess:
+    with tf.Session(graph=g) as sess:
         writer = tf.summary.FileWriter('bc_nn', sess.graph)
         writer.add_graph(graph=tf.get_default_graph())
 
