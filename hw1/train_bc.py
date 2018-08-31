@@ -111,10 +111,10 @@ def constuct_model(graph, dim_list):
         tnsr_in = tf.placeholder(dtype=tf.float32, shape=[None, num_features], name='in')
         tnsr_ref = tf.placeholder(dtype=tf.float32, shape=[None, num_outputs], name='out')
 
-        with tf.variable_scope('normalizer'):
-            mu = tf.Variable(tf.zeros([num_features], dtype=tf.float32), name='training_set_mu', trainable=False)
-            std = tf.Variable(tf.zeros([num_features], dtype=tf.float32), name='training_set_std', trainable=False)
-            tnsr_in_norm = (tnsr_in - mu) / (std+1e-6)
+        # with tf.variable_scope('normalizer'):
+        #     mu = tf.Variable(tf.zeros([num_features], dtype=tf.float32), name='training_set_mu', trainable=False)
+        #     std = tf.Variable(tf.zeros([num_features], dtype=tf.float32), name='training_set_std', trainable=False)
+        #     tnsr_in_norm = (tnsr_in - mu) / (std+1e-6)
 
 
 
@@ -141,7 +141,7 @@ def constuct_model(graph, dim_list):
                                                            weights_initializer=weight_init(dim_list[-2]))
             return logits
 
-        tnsr_out = nn_model(tnsr_in_norm, name='train_model', reuse=False)
+        tnsr_out = nn_model(tnsr_in, name='train_model', reuse=False)
         with tf.variable_scope('loss'):
             loss = tf.reduce_mean(0.5*(tf.square(tnsr_out-tnsr_ref)))
             # loss = tf.losses.mean_squared_error(labels=tnsr_ref, predictions=tnsr_out)
@@ -169,9 +169,9 @@ def constuct_model(graph, dim_list):
 
         valid_in = tf.placeholder(dtype=tf.float32, shape=[None, num_features], name='valid_in')
         valid_out = tf.placeholder(dtype=tf.float32, shape=[None, num_outputs], name='valid_out')
-        with tf.variable_scope('normalizer', reuse=True):
-            valid_in_norm = (valid_in - mu) / (std+1e-6)
-        valid_logits = nn_model(valid_in_norm, name='train_model', reuse=True)
+        # with tf.variable_scope('normalizer', reuse=True):
+        #     valid_in_norm = (valid_in - mu) / (std+1e-6)
+        valid_logits = nn_model(valid_in, name='train_model', reuse=True)
         with tf.variable_scope('valid_loss'):
             # valid_loss = tf.reduce_mean(tf.reduce_sum(tf.square(valid_logits-valid_out), axis=1), axis=0)
             valid_loss = tf.losses.mean_squared_error(labels=valid_out, predictions=valid_logits)
