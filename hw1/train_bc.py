@@ -143,8 +143,8 @@ def constuct_model(graph, dim_list):
 
         tnsr_out = nn_model(tnsr_in_norm, name='train_model', reuse=False)
         with tf.variable_scope('loss'):
-            # loss = tf.reduce_mean(tf.reduce_sum(tf.square(out_logits-train_out), axis=1), axis=0)
-            loss = tf.losses.mean_squared_error(labels=tnsr_ref, predictions=tnsr_out)
+            loss = tf.reduce_mean(0.5*(tf.square(tnsr_out-tnsr_ref)))
+            # loss = tf.losses.mean_squared_error(labels=tnsr_ref, predictions=tnsr_out)
 
         with tf.variable_scope('optimizer'):
             optimizer = tf.train.AdamOptimizer().minimize(loss, global_step=global_step)
