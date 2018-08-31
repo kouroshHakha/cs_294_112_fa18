@@ -342,7 +342,7 @@ def main():
 
     g = tf.Graph()
     nn = constuct_model(g, dim_list)
-    with tf.Session(graph=g) as sess:
+    with tf.Session(graph=g, config=tf.ConfigProto(log_device_placement=False)) as sess:
         writer = tf.summary.FileWriter('bc_nn', sess.graph)
         writer.add_graph(graph=tf.get_default_graph())
 
