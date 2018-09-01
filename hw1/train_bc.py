@@ -373,6 +373,6 @@ def main():
 
 
 if __name__ == '__main__':
-    # for num_epochs in np.arange(5, 55,5):
-    #     print('num_epoch = %d' %num_epochs)
-    main()
+    for num_epochs in [30, 60, 90, 120, 150]:
+        print('num_epoch = %d' %num_epochs)
+        main()
