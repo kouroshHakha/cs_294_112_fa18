@@ -94,7 +94,7 @@ valid_frac = 0.1
 display_step = 1
 batch_size = 256
 # num_epochs is going to get populated later for changing that hyper parameter
-num_epochs = 50
+num_epochs = 10
 
 # graph definition
 
@@ -354,7 +354,7 @@ def main():
             for i in range(args.num_aggr):
                 print("[DAGGER] round:%i" %(i+1))
                 print(20*"-"+"/ training/ " + 20*"-")
-                train(sess, nn, obs_pool, act_pool, writer, num_epochs=20, batch_size=batch_size)
+                train(sess, nn, obs_pool, act_pool, writer, num_epochs=num_epochs, batch_size=batch_size)
                 observations = run_bc(sess, nn, args)
                 print("[DAGGER] adding {} samples".format(len(observations)))
                 actions = query_expert_policy(os.path.join('experts', args.envname + '.pkl'), observations)
@@ -373,6 +373,6 @@ def main():
 
 
 if __name__ == '__main__':
-    for num_epochs in [30, 60, 90, 120, 150]:
-        print('num_epoch = %d' %num_epochs)
-        main()
+    #for num_epochs in [30, 60, 90, 120, 150]:
+        #print('num_epoch = %d' %num_epochs)
+    main()
