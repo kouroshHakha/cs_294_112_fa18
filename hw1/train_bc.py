@@ -92,10 +92,9 @@ def query_expert_policy(expert_policy_file, obs_list):
 
 valid_frac = 0.1
 display_step = 1
-batch_size = 32
+batch_size = 256
 # num_epochs is going to get populated later for changing that hyper parameter
-num_epochs = 80
-
+num_epochs = 50
 
 # graph definition
 
@@ -111,11 +110,10 @@ def constuct_model(graph, dim_list):
         tnsr_in = tf.placeholder(dtype=tf.float32, shape=[None, num_features], name='in')
         tnsr_ref = tf.placeholder(dtype=tf.float32, shape=[None, num_outputs], name='out')
 
-        # with tf.variable_scope('normalizer'):
-        #     mu = tf.Variable(tf.zeros([num_features], dtype=tf.float32), name='training_set_mu', trainable=False)
-        #     std = tf.Variable(tf.zeros([num_features], dtype=tf.float32), name='training_set_std', trainable=False)
-        #     tnsr_in_norm = (tnsr_in - mu) / (std+1e-6)
-
+        with tf.variable_scope('normalizer'):
+            mu = tf.Variable(tf.zeros([num_features], dtype=tf.float32), name='training_set_mu', trainable=False)
+            std = tf.Variable(tf.zeros([num_features], dtype=tf.float32), name='training_set_std', trainable=False)
+            tnsr_in_norm = (tnsr_in - mu) / (std+1e-6)
 
 
         global_step = tf.Variable(0, name='global_step', trainable=False)
@@ -141,13 +139,13 @@ def constuct_model(graph, dim_list):
                                                            weights_initializer=weight_init(dim_list[-2]))
             return logits
 
-        tnsr_out = nn_model(tnsr_in, name='train_model', reuse=False)
+        tnsr_out = nn_model(tnsr_in_norm, name='train_model', reuse=False)
         with tf.variable_scope('loss'):
-            loss = tf.reduce_mean(0.5*(tf.square(tnsr_out-tnsr_ref)))
-            # loss = tf.losses.mean_squared_error(labels=tnsr_ref, predictions=tnsr_out)
+            # loss = tf.reduce_mean(0.5*(tf.square(tnsr_out-tnsr_ref)))
+            loss = tf.losses.mean_squared_error(labels=tnsr_ref, predictions=tnsr_out)
 
         with tf.variable_scope('optimizer'):
-            optimizer = tf.train.AdamOptimizer().minimize(loss, global_step=global_step)
+            optimizer = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss, global_step=global_step)
 
         tf.summary.scalar('loss', loss)
 
@@ -169,9 +167,9 @@ def constuct_model(graph, dim_list):
 
         valid_in = tf.placeholder(dtype=tf.float32, shape=[None, num_features], name='valid_in')
         valid_out = tf.placeholder(dtype=tf.float32, shape=[None, num_outputs], name='valid_out')
-        # with tf.variable_scope('normalizer', reuse=True):
-        #     valid_in_norm = (valid_in - mu) / (std+1e-6)
-        valid_logits = nn_model(valid_in, name='train_model', reuse=True)
+        with tf.variable_scope('normalizer', reuse=True):
+            valid_in_norm = (valid_in - mu) / (std+1e-6)
+        valid_logits = nn_model(valid_in_norm, name='train_model', reuse=True)
         with tf.variable_scope('valid_loss'):
             # valid_loss = tf.reduce_mean(tf.reduce_sum(tf.square(valid_logits-valid_out), axis=1), axis=0)
             valid_loss = tf.losses.mean_squared_error(labels=valid_out, predictions=valid_logits)
@@ -179,12 +177,12 @@ def constuct_model(graph, dim_list):
 
         merged_summary = tf.summary.merge_all()
 
-    return graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss#, mu, std
+    return graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss, mu, std
 
 
 # train function
-def train(sess, nn,  obs, acts, writer, num_epochs=5000, batch_size=256):
-    (graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss) = nn
+def train(sess, nn,  obs, acts, writer, num_epochs=50, batch_size=256):
+    (graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss, mu, std) = nn
     # splitting into training and validation set
     indices = np.arange(len(obs))
     bnd = obs.shape[0] - int(obs.shape[0]*valid_frac)
@@ -205,8 +203,8 @@ def train(sess, nn,  obs, acts, writer, num_epochs=5000, batch_size=256):
     batch_gen = BatchGenerator(train_ds, train_lb, batch_size)
 
     sess.run(tf.global_variables_initializer())
-    #mu.assign(train_mean).op.run()
-    #std.assign(train_std).op.run()
+    mu.assign(train_mean).op.run()
+    std.assign(train_std).op.run()
 
     for epoch in range(num_epochs):
         avg_loss = 0.
@@ -253,7 +251,7 @@ def load_nn(sess, fname):
     saver.restore(sess, fname)
 
 def run_bc(sess, nn, args, log_file=None):
-    (graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss) = nn
+    (graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss, mu, std) = nn
     import gym
     env = gym.make(args.envname)
     max_steps = args.max_timesteps or env.spec.timestep_limit
@@ -338,7 +336,7 @@ def main():
     num_features=env.observation_space.shape[0]
     num_outputs=env.action_space.shape[0]
 
-    dim_list = [num_features, 20, 20, 20, num_outputs]
+    dim_list = [num_features, 128, 64, num_outputs]
 
     g = tf.Graph()
     nn = constuct_model(g, dim_list)
@@ -356,7 +354,7 @@ def main():
             for i in range(args.num_aggr):
                 print("[DAGGER] round:%i" %(i+1))
                 print(20*"-"+"/ training/ " + 20*"-")
-                train(sess, nn, obs_pool, act_pool, writer, num_epochs=20, batch_size=256)
+                train(sess, nn, obs_pool, act_pool, writer, num_epochs=20, batch_size=batch_size)
                 observations = run_bc(sess, nn, args)
                 print("[DAGGER] adding {} samples".format(len(observations)))
                 actions = query_expert_policy(os.path.join('experts', args.envname + '.pkl'), observations)
@@ -368,7 +366,7 @@ def main():
                 store_nn(sess, os.path.join('dagger_agent', args.envname + '.ckpt'))
         else:
             # use simple behavioural cloning
-            train(sess, nn, expert_obs, expert_acts, writer, num_epochs=num_epochs, batch_size=256)
+            train(sess, nn, expert_obs, expert_acts, writer, num_epochs=num_epochs, batch_size=batch_size)
             store_nn(sess, os.path.join('bc_agent', args.envname + '.ckpt'))
 
         run_bc(sess, nn, args, log_file=args.log_file)
