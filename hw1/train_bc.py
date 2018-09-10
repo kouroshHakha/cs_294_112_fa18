@@ -94,7 +94,7 @@ valid_frac = 0.1
 display_step = 1
 batch_size = 256
 # num_epochs is going to get populated later for changing that hyper parameter
-num_epochs = 10
+num_epochs = 100
 
 # graph definition
 
@@ -250,7 +250,7 @@ def load_nn(sess, fname):
     saver = tf.train.Saver()
     saver.restore(sess, fname)
 
-def run_bc(sess, nn, args, log_file=None):
+def run_bc(sess, nn, args):
     (graph, tnsr_in, tnsr_out, tnsr_ref, loss, optimizer, merged_summary, valid_in, valid_out, valid_loss, mu, std) = nn
     import gym
     env = gym.make(args.envname)
@@ -283,25 +283,25 @@ def run_bc(sess, nn, args, log_file=None):
     print('mean return', np.mean(returns))
     print('std of return', np.std(returns))
 
-    if log_file != None:
+    if args.log_file != None:
         data = dict(
             hyperparams=list(),
             returns_list=list(),
         )
 
-        if os.path.exists(log_file):
-            with open(log_file, 'rb') as rf:
+        if os.path.exists(args.log_file):
+            with open(args.log_file, 'rb') as rf:
                 data = pickle.load(rf)
 
         data['hyperparams'].append(num_epochs)
         data['returns_list'].append(returns)
 
-        with open(log_file, 'wb') as wf:
+        with open(args.log_file, 'wb') as wf:
             pickle.dump(data, wf)
 
     return np.array(observations)
 
-def main():
+def main(number_epochs=None):
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('expert_data_file', type=str)
@@ -311,6 +311,7 @@ def main():
     parser.add_argument('--num_rollouts', type=int, default=20,
                         help='Number of expert roll outs')
     parser.add_argument('--resume_training', action='store_true')
+    parser.add_argument('--num_epochs', type=int, default=10)
 
     parser.add_argument("--max_timesteps", type=int)
     parser.add_argument("--use_dagger", action='store_true')
@@ -329,6 +330,11 @@ def main():
     expert_obs = data['observations']
     expert_acts = data['actions']
     expert_acts = np.array([sample.flatten()for sample in expert_acts])
+
+    if number_epochs is None:
+        num_epochs = args.num_epochs
+    else:
+        num_epochs = number_epochs
 
     pprint.pprint(expert_obs[0].shape)
     pprint.pprint(expert_acts[0].shape)
@@ -369,10 +375,14 @@ def main():
             train(sess, nn, expert_obs, expert_acts, writer, num_epochs=num_epochs, batch_size=batch_size)
             store_nn(sess, os.path.join('bc_agent', args.envname + '.ckpt'))
 
-        run_bc(sess, nn, args, log_file=args.log_file)
+        run_bc(sess, nn, args)
 
 
 if __name__ == '__main__':
-    #for num_epochs in [30, 60, 90, 120, 150]:
-        #print('num_epoch = %d' %num_epochs)
+    # TODO
+    # uncomment these lines for question 3.2
+    # for num_epochs in range(5,50,5):
+    #     print('num_epoch = %d' %num_epochs)
+    #     main(num_epochs)
+    # comment this line for question 3.2
     main()
