@@ -13,6 +13,7 @@ import os
 import time
 import inspect
 from multiprocessing import Process
+import time
 #============================================================================================#
 # Utilities
 #============================================================================================#
@@ -59,7 +60,7 @@ def setup_logger(logdir, locals_):
     logz.save_params(params)
 
 def scale(arr, mu, std):
-    arr_ = (arr - np.mean(arr)) / np.std(arr)
+    arr_ = (arr - np.mean(arr)) / (np.std(arr) + 1e-6) # in case it was going to be zero
     return arr_*std+mu
 
 #============================================================================================#
@@ -183,10 +184,9 @@ class Agent(object):
         if self.discrete:
             sy_logits_na = policy_parameters
             # YOUR_CODE_HERE
-            sy_sampled_ac = tf.argmax(tf.sigmoid(sy_logits_na), axis=1)
             # one sample from a multinomial distribution -> (batch_size, 1)
             # after squeeze it is going to be (batch_size,)
-            # sy_sampled_ac = tf.squeeze(tf.multinomial(sy_logits_na, num_samples=1), axis=1)
+            sy_sampled_ac = tf.squeeze(tf.multinomial(sy_logits_na, num_samples=1), axis=1)
         else:
             sy_mean, sy_logstd = policy_parameters
             # YOUR_CODE_HERE
@@ -414,8 +414,8 @@ class Agent(object):
             for i in range(len(re_n)):
                 for t in range(len(re_n[i])):
                     sum_of_rew = 0
-                    for t_p in range(t, len(re_n[i])):
-                        sum_of_rew += (self.gamma ** t_p) * re_n[i][t_p]
+                    for t_p in range(t-1, len(re_n[i])):
+                        sum_of_rew += (self.gamma ** (t_p-(t-1))) * re_n[i][t_p]
                     q_n.append(sum_of_rew)
         else:
             q_n = []
@@ -493,7 +493,7 @@ class Agent(object):
             # On the next line, implement a trick which is known empirically to reduce variance
             # in policy gradient methods: normalize adv_n to have mean zero and std=1.
             # YOUR_CODE_HERE
-            adv_n = (adv_n - np.mean(adv_n)) / np.std(adv_n)
+            adv_n = scale(adv_n, mu=0, std=1)
         return q_n, adv_n
 
     def update_parameters(self, ob_no, ac_na, q_n, adv_n):
@@ -703,7 +703,6 @@ def main():
     max_path_length = args.ep_len if args.ep_len > 0 else None
 
     processes = []
-
     for e in range(args.n_experiments):
         seed = args.seed + 10*e
         print('Running experiment with seed %d'%seed)
